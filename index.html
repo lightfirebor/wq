@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机网址跳转</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #1a202c; /* Dark text */
+        }
+        .container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 500px;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6; /* Blue 500 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .redirect-message {
+            font-size: 1.125rem; /* text-lg */
+            margin-bottom: 1.5rem;
+            color: #4a5568; /* Gray 700 */
+        }
+        .redirect-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .redirect-link:hover {
+            text-decoration: underline;
+        }
+        .status-message {
+            font-size: 0.9rem;
+            color: #6b7280; /* Gray 500 */
+            margin-top: 1rem;
+        }
+        .status-ok { color: #10b981; /* Green 500 */ }
+        .status-warning { color: #f59e0b; /* Yellow 500 */ }
+        .status-error { color: #ef4444; /* Red 500 */ }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner" id="loadingSpinner"></div>
+        <h1 class="text-3xl font-bold mb-4 text-blue-700" id="mainTitle">正在为您检测并跳转...</h1>
+        <p class="redirect-message" id="statusMessage">正在模拟检测网址连通性...</p>
+        <p class="text-sm text-gray-500 mt-6" id="manualRedirectContainer">如果长时间未跳转，请点击：<a href="#" id="manualRedirect" class="redirect-link">立即跳转</a></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainTitle = document.getElementById('mainTitle');
+            const statusMessage = document.getElementById('statusMessage');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const manualRedirectContainer = document.getElementById('manualRedirectContainer');
+            const manualRedirectLink = document.getElementById('manualRedirect');
+
+            // Define an array of URLs with simulated detection results
+            // In a real application, these would be determined by a backend service
+            const urls = [
+                { name: "蓝色", url: "https://bluekvm.com", simulatedBlocked: false, simulatedPolluted: false },
+                { name: "蓝色", url: "https://www.bluekvm.net", simulatedBlocked: false, simulatedPolluted: false },
+                { name: "蓝色", url: "https://sub.bluekvm.link", simulatedBlocked: false, simulatedPolluted: false },
+                { name: "蓝色", url: "https://api.bluekvm.xyz", simulatedBlocked: false, simulatedPolluted: false },
+
+            let attemptCount = 0;
+            const maxAttempts = urls.length * 2; // Try each URL a few times or cycle through
+
+            // Function to perform simulated detection and redirection
+            async function simulateCheckAndRedirect() {
+                loadingSpinner.style.display = 'block'; // Show spinner
+                manualRedirectContainer.style.display = 'none'; // Hide manual link during check
+                mainTitle.textContent = "正在为您检测并跳转...";
+
+                let foundWorkingUrl = false;
+                let finalTargetUrl = null;
+                let finalStatusText = "";
+
+                // Shuffle URLs to make the "random" selection more dynamic each time
+                const shuffledUrls = [...urls].sort(() => 0.5 - Math.random());
+
+                for (const item of shuffledUrls) {
+                    attemptCount++;
+                    statusMessage.innerHTML = `尝试检测：<span class="font-semibold">${item.name}</span> (${item.url})...`;
+                    console.log(`Attempting to check: ${item.name} (${item.url})`);
+
+                    // Simulate network delay for detection
+                    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500)); // 1 to 1.5 seconds per check
+
+                    if (item.simulatedBlocked || item.simulatedPolluted) {
+                        let issue = [];
+                        if (item.simulatedBlocked) issue.push('被墙');
+                        if (item.simulatedPolluted) issue.push('DNS污染');
+                        const issueText = issue.join('且');
+                        statusMessage.innerHTML = `<span class="font-semibold text-red-500">${item.name}</span> 似乎${issueText}。尝试下一个...`;
+                        console.warn(`${item.name} simulated as ${issueText}.`);
+                        // Simulate a brief pause to show the error message
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                        statusMessage.innerHTML = `<span class="font-semibold text-green-500">${item.name}</span> 连接良好。正在跳转...`;
+                        finalTargetUrl = item.url;
+                        finalStatusText = `连接到 <span class="font-semibold">${item.name}</span> 成功！`;
+                        foundWorkingUrl = true;
+                        break; // Found a working URL, stop checking
+                    }
+                }
+
+                loadingSpinner.style.display = 'none'; // Hide spinner
+
+                if (foundWorkingUrl) {
+                    mainTitle.textContent = "跳转成功！";
+                    statusMessage.innerHTML = finalStatusText;
+                    manualRedirectLink.href = finalTargetUrl; // Set manual link to the chosen URL
+                    manualRedirectContainer.style.display = 'block'; // Show manual link
+                    
+                    // Perform the actual redirection after a short delay
+                    setTimeout(() => {
+                        window.location.href = finalTargetUrl;
+                    }, 2000); // 2 seconds to show success message
+                } else {
+                    mainTitle.textContent = "抱歉，未能找到可用网址。";
+                    statusMessage.innerHTML = `<span class="font-semibold text-red-500">所有尝试的网址都模拟存在连接问题（被墙或DNS污染）。</span>`;
+                    manualRedirectContainer.style.display = 'none'; // No valid URL to manually redirect to
+                }
+            }
+
+            // Start the simulated check and redirect process
+            simulateCheckAndRedirect();
+
+            // Manual redirect link (will redirect to the *last attempted* URL if clicked before auto-redirect)
+            // Or to the *chosen* URL if after the check completes.
+            manualRedirectLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                // If a finalTargetUrl is set, use it. Otherwise, try a random one from the original list.
+                const target = manualRedirectLink.href !== '#' ? manualRedirectLink.href : urls[Math.floor(Math.random() * urls.length)].url;
+                console.log("Manual redirect to:", target);
+                window.location.href = target;
+            });
+        });
+    </script>
+</body>
+</html>
